@@ -1,0 +1,2 @@
+SYNTHETIC TEST COURSE — Introduction to Research Methods
+Learning objectives: distinguish a population from a sample, explain why random assignment matters, and identify the limits of causal claims from observational studies. This week's reading introduces these three concepts. Students should compare examples, explain the reasoning behind each method, and critique claims that go beyond the evidence. Assessment uses short explanations and multiple-choice checks.

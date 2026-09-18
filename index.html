@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Echo — Study workspace</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="shell">
+  <a href="#top" class="skip-link">Skip to main content</a>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="Echo home">echo</a>
+    <span class="course-label" id="course-name">Study workspace</span>
+    <span class="model-status" id="model-status">Checking local model…</span>
+  </header>
+  <p id="storage-warning" class="audit-banner hidden" role="alert"></p>
+  <nav class="stepper" aria-label="Study workflow">
+    <button class="step active" data-view="upload">Sources</button>
+    <button class="step" data-view="learn" data-needs-course>Study</button>
+    <button class="step" data-view="quiz" data-needs-course>Quiz</button>
+    <button class="step" data-view="memory" data-needs-course>Review</button>
+  </nav>
+  <main id="top">
+    <h1 id="workspace-title">Add course material</h1>
+    <p class="workspace-description" id="workspace-description">Turn a syllabus and reading into a study guide and quiz. Return later to practice what you missed.</p>
+    <aside id="session-summary" class="session-summary hidden" aria-label="Current study focus">
+      <strong id="focus-title"></strong><span id="signal-value">No attempts yet</span>
+    </aside>
+
+    <section class="view active" id="upload" aria-label="Course sources">
+      <form id="upload-form">
+        <fieldset class="source-row">
+          <legend>1. Syllabus</legend>
+          <p class="field-description">Sets the learning goals.</p>
+          <label class="sr-only" for="syllabus-file">Choose syllabus</label>
+          <input id="syllabus-file" type="file" accept=".pdf,.txt,.md" aria-describedby="syllabus-limit" required />
+          <small id="syllabus-limit">6,000-character limit · choose the learning-objectives pages.</small>
+          <details class="page-options"><summary>Select PDF pages <span>(optional)</span></summary><div class="page-range"><label>First page<input id="syllabus-start" type="number" min="1" value="1" /></label><label>Last page<input id="syllabus-end" type="number" min="1" placeholder="Last" /></label></div></details>
+        </fieldset>
+        <fieldset class="source-row">
+          <legend>2. Chapter or paper</legend>
+          <p class="field-description">Provides the material to study and check answers against.</p>
+          <label class="sr-only" for="reading-file">Choose reading</label>
+          <input id="reading-file" type="file" accept=".pdf,.txt,.md" aria-describedby="reading-limit" required />
+          <small id="reading-limit">16,000-character limit · choose a section, not a full textbook.</small>
+          <details class="page-options"><summary>Select PDF pages <span>(optional)</span></summary><div class="page-range"><label>First page<input id="reading-start" type="number" min="1" value="1" /></label><label>Last page<input id="reading-end" type="number" min="1" placeholder="Last" /></label></div></details>
+        </fieldset>
+        <div class="form-actions"><button class="primary-button" id="extract-button" type="submit">Preview sources</button><p>PDF, TXT, or MD · up to 10 MB each.<br>Text-based PDFs only; scans need OCR.</p></div>
+        <details class="data-note"><summary>File handling and privacy</summary><p>Files are processed on this computer. Extracted text and progress are saved in this browser and can be read by other people using it. PDF ranges use physical page numbers, not printed labels. Nothing is silently truncated.</p></details>
+      </form>
+      <p id="upload-status" role="status" aria-live="polite"></p>
+      <section id="source-preview" class="hidden" aria-label="Extracted source preview"><h2>Review extracted text</h2><p>Check equations and tables before generating. PDF extraction can change their reading order.</p><div id="preview-text" class="preview-list"></div><button id="generate-button" class="primary-button">Generate study guide & quiz</button></section>
+      <section id="saved-courses" class="saved-courses"><h2>Saved study guides</h2><div id="course-list"></div></section>
+    </section>
+
+    <section class="view" id="learn" aria-label="Study material">
+      <div class="study-toolbar">
+        <div class="mode-switch" role="radiogroup" aria-label="Learning modes">
+          <button class="mode-card selected" data-mode="focus" role="radio" aria-checked="true" aria-describedby="mode-description">Focus</button>
+          <button class="mode-card" data-mode="read" role="radio" aria-checked="false" aria-describedby="mode-description">Read</button>
+          <button class="mode-card" data-mode="listen" role="radio" aria-checked="false" aria-describedby="mode-description">Listen</button>
+        </div>
+        <button class="quiet-button" id="refresh-plan">Change sources</button>
+      </div>
+      <p id="mode-description" class="mode-description">One concept at a time, with a short next action.</p>
+      <div class="learning-layout">
+        <article class="study-card" id="study-card"></article>
+        <aside class="source-card"><h2>Source references</h2><p>Matching a quote does not verify the model’s reasoning. Check claims and answers against these passages.</p><ul id="fact-ledger"></ul></aside>
+        <p class="audit-banner hidden" id="audit-banner" role="status"></p>
+      </div>
+    </section>
+
+    <section class="view" id="quiz" aria-label="Quiz">
+      <p class="quiz-count" id="quiz-count"></p>
+      <article class="question-card">
+        <p class="question-concept" id="question-concept"></p>
+        <h2 id="question-text"></h2>
+        <div class="answers" id="answers"></div>
+        <div class="confidence-wrap hidden" id="confidence-wrap"><p>Before revealing the answer, how sure are you?</p><div class="confidence-buttons"><button data-confidence="guessing">Guessing</button><button data-confidence="somewhat">Somewhat sure</button><button data-confidence="confident">Confident</button></div></div>
+        <div class="feedback hidden" id="feedback" role="status"></div>
+        <button class="primary-button hidden" id="next-question">Continue</button>
+      </article>
+      <p class="supporting-note">Correct but uncertain answers go into a separate practice queue.</p>
+    </section>
+
+    <section class="view" id="memory" aria-label="Review plan">
+      <div class="memory-head"><h2 id="plan-title">Start your first quiz</h2><span class="memory-tag" id="plan-tag">NOT ATTEMPTED</span></div>
+      <p id="plan-copy"></p><div id="targeted-list" class="targeted-list"></div>
+      <div class="review-actions"><button class="primary-button" id="start-targeted">Re-quiz only missed concepts</button><button class="quiet-button" id="start-uncertain">Practice uncertain answers</button></div>
+      <div class="concept-table-wrap"><table><thead><tr><th>Concept</th><th>Last answer</th><th>Next step</th><th>Attempts</th></tr></thead><tbody id="memory-table"></tbody></table></div>
+      <div class="memory-meta"><p><strong id="memory-count">0 concepts tracked</strong><br>Saved in this browser. Close Echo and return to continue.</p><button class="quiet-button" id="restart-session">Reload to check saved progress</button></div>
+    </section>
+
+    <section class="view" id="showcase" aria-label="Judge demo guide">
+      <h2>Demonstrate the complete loop</h2>
+      <ol class="demo-steps"><li><strong>Use real course material.</strong> Upload a syllabus and reading, inspect the extracted text, and generate a concept map, review sheet, and quiz.</li><li><strong>Check the model’s work.</strong> Have a teammate compare answers with the source passages. Record a correction or flag; quote matching is not fact-checking.</li><li><strong>Show memory, not just a score.</strong> Miss one question, answer another correctly but uncertainly, then close and reopen Echo. Re-quiz only the missed concept; show the separate confidence-practice queue.</li></ol>
+      <h2>What to explain to the judges</h2>
+      <dl class="demo-notes"><dt>Inclusive presentation</dt><dd>Focus offers ADHD-paced chunks. Read uses dyslexia-friendly spacing. Listen provides a linear, keyboard-accessible screen-reader outline. These are presentation options, not clinical or accessibility certifications.</dd><dt>Local small model</dt><dd>Qwen 2.5 3B runs through Ollama on this computer. After setup, generation is offline-capable and needs no cloud API tokens. The model can still make factual mistakes.</dd><dt>Persistent review</dt><dd>Each study guide keeps its own answers, confidence signals, and review notes in browser storage. Review repeats saved questions; calendar-based spaced repetition is not implemented.</dd></dl>
+    </section>
+  </main>
+  <footer><span>Echo · Local study workspace</span><button class="step footer-link" data-view="showcase">Judge demo guide</button></footer>
+  <script src="app.js"></script>
+</body>
+</html>

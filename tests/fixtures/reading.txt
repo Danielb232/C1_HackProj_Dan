@@ -1,0 +1,7 @@
+SYNTHETIC TEST READING — Reasoning About Research
+
+A population is the entire group a researcher wants to understand. A sample is a subset of that population that is actually observed. For example, all students at a university form a population, while 100 surveyed students form a sample. A sample does not automatically represent its population: selecting only volunteers can introduce selection bias.
+
+Random assignment places participants into study groups by chance. Its purpose is to reduce systematic differences between groups before the treatment is applied. Random assignment is different from random sampling: sampling selects people from a population, while assignment distributes selected participants among study groups. Chance can still produce imbalanced groups in a small experiment.
+
+An observational study measures variables without assigning a treatment. An association in observational data does not by itself establish causation. A confounding variable can influence both the proposed cause and the measured outcome. For example, an association between umbrella use and wet roads does not show that umbrellas cause wet roads: rain influences both. Researchers should state such limits rather than claim that every correlation is causal.
