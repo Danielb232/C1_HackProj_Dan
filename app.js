@@ -117,14 +117,44 @@ function renderBudget(b) {
     `Token counts are estimates, not tokenizer measurements. ${n(b.calibration_samples)} measured local runs checked this server session; calibration can tighten the estimate. ` +
     (b.fits ? 'Fitting does not guarantee speed, accuracy, or complete coverage.' : `Reduce by about ${n(-b.remaining)} estimated tokens: select fewer PDF pages or upload an excerpt, then preview again. Your text has not been shortened.`);
 }
+async function streamGuide(files, onProgress) {
+  const response = await fetch('/api/generate-stream', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(files)});
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Generation could not start.');
+  }
+  if (!(response.headers.get('content-type') || '').includes('application/x-ndjson')) throw new Error('Restart Echo to enable live generation progress.');
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let buffer = '', result = null;
+  function consume(line) {
+    if (!line.trim()) return;
+    const event = JSON.parse(line);
+    if (event.type === 'error') throw new Error(event.message);
+    if (event.type === 'progress') onProgress(event.message);
+    if (event.type === 'result') result = event.data;
+  }
+  try {
+    while (true) {
+      const {value, done} = await reader.read();
+      buffer += decoder.decode(value, {stream:!done});
+      let newline;
+      while ((newline = buffer.indexOf('\n')) !== -1) { consume(buffer.slice(0,newline)); buffer = buffer.slice(newline+1); }
+      if (done) break;
+    }
+    consume(buffer);
+    if (!result) throw new Error('Connection ended before the guide was ready. No new guide was saved.');
+    return result;
+  } finally { await reader.cancel().catch(()=>{}); reader.releaseLock(); }
+}
 async function generate() {
   if (!pendingFiles || !pendingBudget?.fits || busy) return;
   setBusy(true);
   const started = Date.now();
-  const progress = () => status(`Your local SLM is connecting the syllabus to the reading, building three concepts, a review sheet, and a quiz… ${Math.floor((Date.now()-started)/1000)}s\nUsually 1–3 minutes on this computer. Keep this tab open. Your current course is preserved until the new pack succeeds.`);
-  progress(); const timer = setInterval(progress, 10000);
+  let phase = 'Connecting to the local model…', lastUpdate = Date.now();
+  const progress = () => status(`${phase}\n${Math.floor((Date.now()-started)/1000)}s elapsed${Date.now()-lastUpdate>20000 ? ' · waiting for the next model update' : ''}. Keep this tab open. Existing guides stay unchanged until source checks pass.`);
+  progress(); const timer = setInterval(progress, 1000);
   try {
-    const result = await api('/api/generate', pendingFiles);
+    const result = await streamGuide(pendingFiles, message=>{phase=message;lastUpdate=Date.now();progress();});
     // Changed question meanings/indices must never inherit old answers.
     const id = `${result.id}-${Date.now()}`;
     course = {...result, id, memory:{}, checks:{}, created:new Date().toISOString()};
@@ -156,6 +186,7 @@ function sourceDetails(c) {
 function renderSources() {
   const usage = course.usage;
   $('generation-usage').textContent = usage ? `This run: ${usage.actual_prompt_tokens == null ? 'unavailable' : Number(usage.actual_prompt_tokens).toLocaleString()} measured input tokens; ${usage.actual_output_tokens == null ? 'unavailable' : Number(usage.actual_output_tokens).toLocaleString()} output tokens. Context allocated: ${Number(usage.budget.context).toLocaleString()}. Runtime: ${usage.generation_seconds}s. These measurements describe this run, not a quality score.` : 'Token measurements are available for newly generated guides.';
+  if (usage?.repair_actions?.length) $('generation-usage').textContent += ` Initial-draft measurements above exclude repairs. ${usage.repair_actions.join(' ')} Repair model time: ${(usage.repairs || []).reduce((sum,r)=>sum+r.generation_seconds,0).toFixed(1)}s. Source matching is not human fact-checking.`;
   $('fact-ledger').innerHTML = course.plan.concepts.map(c=>`<li><strong>${safe(c.title)}</strong>${sourceDetails(c)}</li>`).join('');
   const s = course.sources.syllabus.chunks.find(c=>c.id===course.plan.syllabus_id);
   $('fact-ledger').insertAdjacentHTML('beforeend', `<li><strong>Syllabus connection</strong><details><summary>${safe(course.plan.syllabus_id)} · Syllabus · ${safe(course.sources.syllabus.kind)} ${s?.page}</summary><p class="source-document">${safe(course.sources.syllabus.name)}</p><p>${safe(s?.text)}</p></details></li>`);

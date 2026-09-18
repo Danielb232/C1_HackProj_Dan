@@ -75,6 +75,22 @@ assert.match(app.element('context-budget').textContent, /Over estimated budget/)
 assert.match(app.element('context-budget').textContent, /not tokenizer measurements/);
 assert.match(app.element('context-budget').textContent, /2,000 estimated tokens/);
 console.log('PASS: context budget gating, unavailable model feedback, honest estimates');
+
+(async()=>{
+  const streamApp = boot(); streamApp.context.TextDecoder = TextDecoder;
+  const events = [];
+  const data = Buffer.from('{"type":"progress","message":"Checking…"}\n{"type":"result","data":{"id":"stream-test"}}\n');
+  const chunks = [data.subarray(0,12),data.subarray(12,44),data.subarray(44)];
+  streamApp.context.fetch = async()=>({ok:true,headers:{get:()=> 'application/x-ndjson'},body:{getReader:()=>({
+    read:async()=>chunks.length?{value:chunks.shift(),done:false}:{done:true},cancel:async()=>{},releaseLock(){}
+  })}});
+  streamApp.context.onTestProgress = message=>events.push(message);
+  const result = await streamApp.run('streamGuide({},onTestProgress)');
+  assert.equal(result.id,'stream-test'); assert.equal(events[0],'Checking…');
+  streamApp.context.fetch = async()=>({ok:false,json:async()=>({error:'Already generating'})});
+  await assert.rejects(streamApp.run('streamGuide({},onTestProgress)'),/Already generating/);
+  console.log('PASS: split streamed messages, UTF-8 progress, completed guide, busy response');
+})().catch(error=>{console.error(error);process.exitCode=1;});
 // Leitner ladder is a pure function of the previous record, so the demo story is checkable directly.
 assert.equal(app.run("var r=advance(undefined,false,'confident',1);JSON.stringify([r.box,r.status,r.nextDueSession])"),'[1,"missed",2]');
 assert.equal(app.run("var r=advance({box:1,timesMissed:1},true,'confident',2);JSON.stringify([r.box,r.status,r.nextDueSession])"),'[2,"mastered",4]','Miss, then confident recovery next session → mastered');

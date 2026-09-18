@@ -32,7 +32,7 @@ For a quick test, upload `tests/fixtures/syllabus.txt` as the syllabus and `test
 
 1. Upload a syllabus plus a chapter/paper (PDF, UTF-8 TXT, MD). PDFs must contain text; no OCR. Maximum 10 MB each. Select PDF page ranges for large documents. Both sources share a model-aware token budget, rather than separate character caps (see below). Page labels refer to physical PDF pages.
 2. Inspect extracted text. PDF tables, equations, and multiple columns can extract poorly. Upload a clean text excerpt if needed.
-3. Generate locally: syllabus alignment, three concepts, two map relationships, a critical-review sheet, and three multiple-choice questions. Typically 1–3 minutes; slower hardware may time out. Malformed output or mismatched quotes fails visibly, with no canned fallback.
+3. Generate locally: syllabus alignment, three concepts, two map relationships, a critical-review sheet, and three multiple-choice questions. Typically 1–3 minutes; targeted repairs can add time. Live progress reports the model's received output characters and validation/repair stages, not a fabricated completion percentage. Malformed or unverified output fails visibly, with no canned fallback.
 4. A human teammate checks answers and source passages in Learn. Approval/flags and notes persist. Flagged questions are excluded from quizzes; proposed concept-map connections can also be flagged and excluded. Draft questions remain available but visibly marked as not checked. Quotes matching source text does not establish answer correctness, complete coverage, or sound reasoning. In testing, the small model produced both an unsupported connection and semantically overlapping answer options: review is essential, not ceremonial.
 5. Choose an answer, report confidence, then see feedback. Missed and correct-but-uncertain answers have separate queues.
 6. Reload or close and reopen using the same browser/origin. Memory → Re-quiz only missed concepts. This repeats saved questions; it does not generate fresh variants.
@@ -61,6 +61,8 @@ The integration teammate can wire up `#canvas-connect`, `#canvas-course`, and `#
 ## Data and limitations
 
 ### Model-aware limits and measurements
+
+Generation streams progress through `/api/generate-stream` (newline-delimited JSON). The original JSON endpoint remains compatible. If a concept's exact quote is found in a different reading passage, Echo corrects only its source ID. Otherwise it requests one bounded replacement for that concept, constrained to an unchanged title, a passage from the uploaded reading, and literal quote choices extracted from that passage. Valid concepts are preserved. Duplicate quiz options also trigger repair. All replacements pass the original source and structural checks before publication; unsuccessful repairs still fail closed. There are at most three repair calls, with a 120-second limit each; initial generation has a 240-second limit. Repair actions and model timings are available under Measured model usage. Matching quotes does not prove their semantic support or the quiz answer's correctness: human checking remains essential.
 
 Every preview reads the installed model's architecture/context maximum from Ollama `/api/show`. Echo uses the smaller of that maximum and its requested runtime allocation (`ECHO_CONTEXT_TOKENS`, default 12,288). The installed Qwen model reported 32,768 at implementation time; Echo does **not** assume that maximum is fast or safe for every computer. The runtime default remains an explicit performance policy, not a hardware benchmark.
 
