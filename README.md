@@ -37,6 +37,14 @@ For a quick test, upload `tests/fixtures/syllabus.txt` as the syllabus and `test
 
 ## Inclusion and judge pitch
 
+### Canvas handoff (UI placeholder only)
+
+Sources includes a clearly labeled, disabled three-step Canvas flow for University of Washington (`https://canvas.uw.edu/`): connect → choose a class → select syllabus and reading. No authentication, API calls, credentials, or imports are implemented. File uploads remain the working source path; do not present Canvas as connected in the demo.
+
+The integration teammate can wire up `#canvas-connect`, `#canvas-course`, and `#canvas-materials` inside `#canvas-source` in `index.html`. Styles are scoped to `.canvas-placeholder` and `.canvas-actions`. No backend or study-generation code was changed for this placeholder.
+
+### Current demo features
+
 - Focus: one concept at a time and one small action; ADHD-paced presentation.
 - Read: short summaries, increased spacing and comfortable line lengths; dyslexia-friendly intent, not a clinical or accessibility certification.
 - Listen: semantic, linear screen-reader output and keyboard controls; no speech synthesis is implied.
@@ -57,6 +65,7 @@ python3 -m unittest discover -s tests -v
 node --check app.js
 node tests/frontend.test.cjs
 node tests/theme.test.cjs
+node tests/canvas-placeholder.test.cjs
 ```
 
 Ollama structured-output reference: https://docs.ollama.com/capabilities/structured-outputs

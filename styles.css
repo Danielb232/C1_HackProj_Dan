@@ -53,6 +53,12 @@ main { padding: 32px 0 48px; min-height: 65vh; }
 .view { display: none; margin-top: 26px; }
 .view.active { display: block; }
 #upload { max-width: 840px; }
+.canvas-placeholder { padding: 0 0 24px; }
+.canvas-placeholder h2 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.planned-label { font-size: 13px; font-weight: 550; letter-spacing: 0; color: var(--accent-text); background: var(--accent-soft); padding: 2px 8px; border-radius: 3px; }
+.canvas-placeholder p { margin-top: 7px; font-size: 14px; color: var(--muted); }
+.canvas-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.canvas-actions button:disabled { opacity: 1; color: var(--muted); background: var(--paper); border-style: dashed; }
 fieldset { min-width: 0; }
 .source-row { margin: 0; padding: 16px 0 18px; border: 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 7px 24px; }
 .source-row legend { float: left; grid-column: 1; padding: 0; font-weight: 650; font-size: 15px; }

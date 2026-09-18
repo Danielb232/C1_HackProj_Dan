@@ -28,6 +28,16 @@
     </aside>
 
     <section class="view active" id="upload" aria-label="Course sources">
+      <section class="canvas-placeholder" id="canvas-source" aria-labelledby="canvas-title" aria-describedby="canvas-note">
+        <h2 id="canvas-title">Import from Canvas <span class="planned-label">Coming soon</span></h2>
+        <p>University of Washington · canvas.uw.edu</p>
+        <div class="canvas-actions" role="group" aria-label="Planned Canvas import steps">
+          <button id="canvas-connect" class="quiet-button" type="button" disabled aria-describedby="canvas-note">1. Connect Canvas</button>
+          <button id="canvas-course" class="quiet-button" type="button" disabled aria-describedby="canvas-note">2. Choose a class</button>
+          <button id="canvas-materials" class="quiet-button" type="button" disabled aria-describedby="canvas-note">3. Select syllabus & reading</button>
+        </div>
+        <p id="canvas-note">Preview only—Canvas is not connected yet. Upload your files below to start studying.</p>
+      </section>
       <form id="upload-form">
         <fieldset class="source-row">
           <legend>1. Syllabus</legend>
