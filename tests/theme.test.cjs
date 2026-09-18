@@ -27,5 +27,10 @@ assert.match(primary, /font-weight:\s*700/);
 contrast('on-accent', 'accent', 3);
 contrast('on-accent', 'accent-hover', 3);
 contrast('accent', 'paper', 3);
+// Map nodes carry a white concept number, and legend dots must be distinguishable on paper.
+for (const status of ['status-unseen', 'status-missed', 'status-learning', 'status-mastered']) {
+  contrast('on-accent', status, 4.5);
+  contrast(status, 'paper', 3);
+}
 assert.doesNotMatch(css, /#315c47|#244936|#fafaf7|#f0f3ee/i);
 console.log('PASS: exact blue accent, readable text/surface pairs, primary-label contrast, semantic feedback colors');
