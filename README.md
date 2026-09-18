@@ -39,7 +39,7 @@ For a quick test, upload `tests/fixtures/syllabus.txt` as the syllabus and `test
 
 ### Canvas handoff (UI placeholder only)
 
-Sources includes a clearly labeled, disabled three-step Canvas flow for University of Washington (`https://canvas.uw.edu/`): connect → choose a class → select syllabus and reading. No authentication, API calls, credentials, or imports are implemented. File uploads remain the working source path; do not present Canvas as connected in the demo.
+Sources includes a clearly labeled, disabled three-step Canvas flow, not tied to a specific school: connect → choose a class → select syllabus and reading. No authentication, API calls, credentials, or imports are implemented. File uploads remain the working source path; do not present Canvas as connected in the demo.
 
 The integration teammate can wire up `#canvas-connect`, `#canvas-course`, and `#canvas-materials` inside `#canvas-source` in `index.html`. Styles are scoped to `.canvas-placeholder` and `.canvas-actions`. No backend or study-generation code was changed for this placeholder.
 

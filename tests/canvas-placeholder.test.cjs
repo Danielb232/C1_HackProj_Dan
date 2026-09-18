@@ -4,7 +4,8 @@ const html = fs.readFileSync('index.html', 'utf8');
 const panel = html.match(/<section[^>]*id="canvas-source"[^>]*>([\s\S]*?)<\/section>/)?.[1];
 assert.ok(panel, 'Canvas placeholder exists');
 assert.match(panel, /Coming soon/);
-assert.match(panel, /canvas\.uw\.edu/);
+assert.match(panel, /your Canvas courses/);
+assert.doesNotMatch(panel, /University of Washington|canvas\.uw\.edu/i);
 assert.match(panel, /Canvas is not connected yet/);
 for (const id of ['canvas-connect', 'canvas-course', 'canvas-materials']) {
   const button = panel.match(new RegExp(`<button[^>]*id="${id}"[^>]*>`))?.[0];
