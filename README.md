@@ -28,7 +28,7 @@ For a quick test, upload `tests/fixtures/syllabus.txt` as the syllabus and `test
 
 ## Workflow
 
-1. Upload a syllabus plus a chapter/paper (PDF, UTF-8 TXT, MD). PDFs must contain text; no OCR. Maximum 10 MB each. Select PDF page ranges for large documents: 6,000 extracted characters for syllabus, 16,000 for reading. These limits keep the local model's context bounded; full textbooks are not supported. Nothing is silently truncated. Page labels refer to physical PDF pages.
+1. Upload a syllabus plus a chapter/paper (PDF, UTF-8 TXT, MD). PDFs must contain text; no OCR. Maximum 10 MB each. Select PDF page ranges for large documents. Both sources share a model-aware token budget, rather than separate character caps (see below). Page labels refer to physical PDF pages.
 2. Inspect extracted text. PDF tables, equations, and multiple columns can extract poorly. Upload a clean text excerpt if needed.
 3. Generate locally: syllabus alignment, three concepts, two map relationships, a critical-review sheet, and three multiple-choice questions. Typically 1–3 minutes; slower hardware may time out. Malformed output or mismatched quotes fails visibly, with no canned fallback.
 4. A human teammate checks answers and source passages in Learn. Approval/flags and notes persist. Flagged questions are excluded from quizzes; proposed concept-map connections can also be flagged and excluded. Draft questions remain available but visibly marked as not checked. Quotes matching source text does not establish answer correctness, complete coverage, or sound reasoning. In testing, the small model produced both an unsupported connection and semantically overlapping answer options: review is essential, not ceremonial.
@@ -53,6 +53,22 @@ The integration teammate can wire up `#canvas-connect`, `#canvas-course`, and `#
 - The required concept map, review sheet, quiz, persistent memory, and human answer-check flow are present. For the live demo, ask a real teammate to verify answers; software tests are not that human check.
 
 ## Data and limitations
+
+### Model-aware limits and measurements
+
+Every preview reads the installed model's architecture/context maximum from Ollama `/api/show`. Echo uses the smaller of that maximum and its requested runtime allocation (`ECHO_CONTEXT_TOKENS`, default 12,288). The installed Qwen model reported 32,768 at implementation time; Echo does **not** assume that maximum is fast or safe for every computer. The runtime default remains an explicit performance policy, not a hardware benchmark.
+
+The **entire constructed prompt** is budgeted: both sources, passage IDs, instructions, and JSON schema. From the allocated context we reserve 2,100 output tokens, 256 formatting tokens, and 20% for estimation error. These reserves are conservative engineering policies, not empirically optimal values. The initial estimate counts ASCII at 3 bytes/token and non-ASCII at 1 byte/token; it is **not an exact tokenizer count**. Preview shows the estimate, available space, both context sizes, and the reserves. Over-budget sources remain visible for inspection, but generation is disabled; choose fewer PDF pages or upload an excerpt. Missing model metadata also blocks generation, with no invented capacity fallback. The server independently rechecks the budget before generation.
+
+Completed model calls provide actual `prompt_eval_count`, `eval_count`, and elapsed time. Measured prompt density can increase the estimate for subsequent requests in the same server session; it never relaxes the baseline based on a few easy inputs. Only a numeric maximum ratio and sample count are held in server memory, reset on restart. No document content is retained for calibration. Each successful saved guide includes its own usage measurements, visible under Study → Source references → Measured model usage. Older guides remain compatible. Near-full measured prompts are rejected rather than publishing a possibly truncated result. Estimates and margins cannot guarantee exact tokenization or semantic coverage; no automatic chunk retrieval is implemented.
+
+The **10 MB upload cap** and **500,000 extracted characters per file** are independent reader/preview resource guards, not model or Canvas limits. They remain explicit safety policies. Raising the context allocation can consume more RAM and time; fitting the budget does not establish answer quality. Human source checking remains required.
+
+Implementation references: [Ollama model information](https://github.com/ollama/ollama/blob/main/docs/api.md#show-model-information), [generation usage fields](https://docs.ollama.com/api/generate).
+
+Live smoke test (2026-09-18, bundled synthetic syllabus/reading, Qwen 2.5 3B): estimated 1,643 prompt tokens; Ollama reported 1,193 input tokens, 634 output tokens, and 81.3 seconds. All three concepts passed structural/source-quote validation. A larger synthetic preview estimated 32,570 tokens and was blocked without dropping its extracted passages. This is one functional test, not a representative performance/quality benchmark or evidence that the reserve settings are optimal.
+
+### Local data
 
 The original files are decoded locally in memory; PDF extraction uses automatically cleaned temporary files. Extracted text, generated packs, human checks, and progress are saved in this browser's localStorage. They are not encrypted and can be read by other users of the same browser. Remove a pack in Sources to delete its browser copy; original files remain untouched. Clearing browser data also deletes progress. localhost and 127.0.0.1 have separate storage. Each generated pack has independent memory; regenerating does not transfer old answers to changed questions.
 

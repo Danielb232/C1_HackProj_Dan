@@ -44,7 +44,7 @@
           <p class="field-description">Sets the learning goals.</p>
           <label class="sr-only" for="syllabus-file">Choose syllabus</label>
           <input id="syllabus-file" type="file" accept=".pdf,.txt,.md" aria-describedby="syllabus-limit" required />
-          <small id="syllabus-limit">6,000-character limit · choose the learning-objectives pages.</small>
+          <small id="syllabus-limit">Shares the model’s context budget with your reading. Learning-objectives pages work best.</small>
           <details class="page-options"><summary>Select PDF pages <span>(optional)</span></summary><div class="page-range"><label>First page<input id="syllabus-start" type="number" min="1" value="1" /></label><label>Last page<input id="syllabus-end" type="number" min="1" placeholder="Last" /></label></div></details>
         </fieldset>
         <fieldset class="source-row">
@@ -52,14 +52,14 @@
           <p class="field-description">Provides the material to study and check answers against.</p>
           <label class="sr-only" for="reading-file">Choose reading</label>
           <input id="reading-file" type="file" accept=".pdf,.txt,.md" aria-describedby="reading-limit" required />
-          <small id="reading-limit">16,000-character limit · choose a section, not a full textbook.</small>
+          <small id="reading-limit">Preview checks the combined token budget. Choose a focused chapter or section.</small>
           <details class="page-options"><summary>Select PDF pages <span>(optional)</span></summary><div class="page-range"><label>First page<input id="reading-start" type="number" min="1" value="1" /></label><label>Last page<input id="reading-end" type="number" min="1" placeholder="Last" /></label></div></details>
         </fieldset>
         <div class="form-actions"><button class="primary-button" id="extract-button" type="submit">Preview sources</button><p>PDF, TXT, or MD · up to 10 MB each.<br>Text-based PDFs only; scans need OCR.</p></div>
         <details class="data-note"><summary>File handling and privacy</summary><p>Files are processed on this computer. Extracted text and progress are saved in this browser and can be read by other people using it. PDF ranges use physical page numbers, not printed labels. Nothing is silently truncated.</p></details>
       </form>
       <p id="upload-status" role="status" aria-live="polite"></p>
-      <section id="source-preview" class="hidden" aria-label="Extracted source preview"><h2>Review extracted text</h2><p>Check equations and tables before generating. PDF extraction can change their reading order.</p><div id="preview-text" class="preview-list"></div><button id="generate-button" class="primary-button">Generate study guide & quiz</button></section>
+      <section id="source-preview" class="hidden" aria-label="Extracted source preview"><h2>Review extracted text</h2><p>Check equations and tables before generating. PDF extraction can change their reading order.</p><details class="budget-details" open><summary>Model context budget</summary><p id="context-budget" role="status"></p></details><div id="preview-text" class="preview-list"></div><button id="generate-button" class="primary-button" disabled>Generate study guide & quiz</button></section>
       <section id="saved-courses" class="saved-courses"><h2>Saved study guides</h2><div id="course-list"></div></section>
     </section>
 
@@ -75,7 +75,7 @@
       <p id="mode-description" class="mode-description">One concept at a time, with a short next action.</p>
       <div class="learning-layout">
         <article class="study-card" id="study-card"></article>
-        <aside class="source-card"><h2>Source references</h2><p>Matching a quote does not verify the model’s reasoning. Check claims and answers against these passages.</p><ul id="fact-ledger"></ul></aside>
+        <aside class="source-card"><h2>Source references</h2><p>Matching a quote does not verify the model’s reasoning. Check claims and answers against these passages.</p><ul id="fact-ledger"></ul><details class="data-note"><summary>Measured model usage</summary><p id="generation-usage"></p></details></aside>
         <p class="audit-banner hidden" id="audit-banner" role="status"></p>
       </div>
     </section>

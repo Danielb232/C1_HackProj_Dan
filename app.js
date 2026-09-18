@@ -8,7 +8,7 @@ try {
 } catch { /* A damaged save must not prevent uploading new sources. */ }
 let course = library.courses[library.active] || null;
 let currentMode = 'focus', focusStep = 0, queue = [], questionIndex = 0, chosen = null, answered = false;
-let pendingFiles = null, busy = false;
+let pendingFiles = null, pendingBudget = null, busy = false;
 
 function persist() {
   try { localStorage.setItem(STORAGE, JSON.stringify(library)); $('storage-warning').classList.add('hidden'); return true; }
@@ -42,7 +42,7 @@ function setView(view, scroll = true) {
 function setBusy(value) {
   busy = value;
   $('upload-form').querySelectorAll('input, button').forEach(e => e.disabled = value);
-  $('generate-button').disabled = value;
+  $('generate-button').disabled = value || !pendingFiles || pendingBudget?.fits !== true;
   $('source-preview').setAttribute('aria-busy', String(value));
   renderLibrary();
 }
@@ -63,7 +63,7 @@ function readFile(file) {
 }
 async function upload(event) {
   event.preventDefault();
-  setBusy(true); pendingFiles = null; $('source-preview').classList.add('hidden');
+  setBusy(true); pendingFiles = null; pendingBudget = null; $('source-preview').classList.add('hidden');
   status('Reading your selected files locally…');
   try {
     const files = {};
@@ -74,14 +74,31 @@ async function upload(event) {
     }
     const result = await api('/api/extract', files);
     pendingFiles = files;
+    pendingBudget = result.budget;
+    renderBudget(pendingBudget);
     $('preview-text').innerHTML = Object.values(result.sources).map(doc => `<article class="preview-document"><h2>${safe(doc.name)}</h2><p>${doc.chunks.length} source passages · ${doc.chunks.reduce((n,c)=>n+c.text.length,0).toLocaleString()} characters</p><div class="extracted" tabindex="0" aria-label="Extracted text from ${safe(doc.name)}">${doc.chunks.map(c => `<p><strong>${safe(c.id)} · ${safe(doc.kind)} ${c.page}</strong><br>${safe(c.text)}</p>`).join('')}</div></article>`).join('');
     $('source-preview').classList.remove('hidden');
-    status('Sources ready. Inspect the preview, then build your study pack.');
+    status(pendingBudget?.fits ? 'Sources fit the estimated budget. Inspect the preview, then build your study pack.' : 'Preview available, but generation is blocked. Check the context budget below.', !pendingBudget?.fits);
   } catch (error) { status(error.message, true); }
   finally { setBusy(false); }
 }
+function renderBudget(b) {
+  const target = $('context-budget');
+  target.classList.toggle('error', !b?.fits);
+  if (!b || b.error) {
+    target.textContent = b?.error || 'Context budget unavailable. Preview again before generating.';
+    return;
+  }
+  const n = value => Number(value).toLocaleString();
+  const sources = b.source_estimates || {};
+  target.textContent = `${b.fits ? 'Within estimated budget' : 'Over estimated budget'} · ${n(b.prompt_estimate)} / ${n(b.prompt_budget)} prompt tokens\n` +
+    `Both sources share the budget, including instructions and source labels. Source-only baseline estimates: syllabus ${n(sources.syllabus)}, reading ${n(sources.reading)}.\n` +
+    `Context allocated: ${n(b.context)} tokens (model maximum: ${n(b.model_max)}). Reserved: ${n(b.output_reserve)} for the answer, ${n(b.template_reserve)} for formatting, ${n(b.safety_reserve)} for estimation error.\n` +
+    `Token counts are estimates, not tokenizer measurements. ${n(b.calibration_samples)} measured local runs checked this server session; calibration can tighten the estimate. ` +
+    (b.fits ? 'Fitting does not guarantee speed, accuracy, or complete coverage.' : `Reduce by about ${n(-b.remaining)} estimated tokens: select fewer PDF pages or upload an excerpt, then preview again. Your text has not been shortened.`);
+}
 async function generate() {
-  if (!pendingFiles || busy) return;
+  if (!pendingFiles || !pendingBudget?.fits || busy) return;
   setBusy(true);
   const started = Date.now();
   const progress = () => status(`Your local SLM is connecting the syllabus to the reading, building three concepts, a review sheet, and a quiz… ${Math.floor((Date.now()-started)/1000)}s\nUsually 1–3 minutes on this computer. Keep this tab open. Your current course is preserved until the new pack succeeds.`);
@@ -117,6 +134,8 @@ function sourceDetails(c) {
   return `<details><summary>${safe(c.source_id)} · Reading · ${safe(doc.kind)} ${passage?.page ?? '?'}</summary><p class="source-document">${safe(doc.name)}</p><blockquote>${safe(c.quote)}</blockquote><p>${safe(passage?.text)}</p></details>`;
 }
 function renderSources() {
+  const usage = course.usage;
+  $('generation-usage').textContent = usage ? `This run: ${usage.actual_prompt_tokens == null ? 'unavailable' : Number(usage.actual_prompt_tokens).toLocaleString()} measured input tokens; ${usage.actual_output_tokens == null ? 'unavailable' : Number(usage.actual_output_tokens).toLocaleString()} output tokens. Context allocated: ${Number(usage.budget.context).toLocaleString()}. Runtime: ${usage.generation_seconds}s. These measurements describe this run, not a quality score.` : 'Token measurements are available for newly generated guides.';
   $('fact-ledger').innerHTML = course.plan.concepts.map(c=>`<li><strong>${safe(c.title)}</strong>${sourceDetails(c)}</li>`).join('');
   const s = course.sources.syllabus.chunks.find(c=>c.id===course.plan.syllabus_id);
   $('fact-ledger').insertAdjacentHTML('beforeend', `<li><strong>Syllabus connection</strong><details><summary>${safe(course.plan.syllabus_id)} · Syllabus · ${safe(course.sources.syllabus.kind)} ${s?.page}</summary><p class="source-document">${safe(course.sources.syllabus.name)}</p><p>${safe(s?.text)}</p></details></li>`);
@@ -227,7 +246,7 @@ async function checkModel() {
 }
 
 $('upload-form').addEventListener('submit', upload);
-$('upload-form').addEventListener('change',()=>{pendingFiles=null;$('source-preview').classList.add('hidden');});
+$('upload-form').addEventListener('change',()=>{pendingFiles=null;pendingBudget=null;$('generate-button').disabled=true;$('source-preview').classList.add('hidden');});
 $('generate-button').addEventListener('click', generate);
 $('refresh-plan').addEventListener('click',()=>setView('upload'));
 document.querySelectorAll('.step').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));

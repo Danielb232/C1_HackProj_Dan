@@ -89,6 +89,10 @@ label { display: block; font-size: 14px; font-weight: 550; }
 #upload-status.error { color: var(--error); }
 #source-preview, .saved-courses { margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--line); }
 #source-preview > p { font-size: 15px; color: var(--muted); margin: 7px 0 16px; }
+.budget-details { margin-bottom: 20px; padding: 12px 0; border-block: 1px solid var(--line); font-size: 14px; }
+.budget-details summary { color: var(--accent-text); font-weight: 600; }
+#context-budget { white-space: pre-line; margin-top: 8px; color: var(--muted); }
+#context-budget.error { color: var(--error); }
 .preview-document { border-bottom: 1px solid var(--line); margin-bottom: 16px; padding-bottom: 12px; min-width: 0; }
 .preview-document > p { color: var(--muted); font-size: 14px; }
 .extracted { max-height: 220px; overflow: auto; margin-top: 9px; padding: 12px; background: var(--soft); font-size: 15px; white-space: pre-wrap; overflow-wrap: anywhere; }

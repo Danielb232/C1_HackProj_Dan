@@ -34,25 +34,29 @@ class ExtractionTests(unittest.TestCase):
 
     def test_oversize_text_is_not_truncated(self):
         with self.assertRaisesRegex(ValueError,'Nothing was silently truncated'):
-            server.extract_file(file('large.txt','word '*2000),'S',6000)
+            server.extract_file(file('large.txt','word '*100001),'S')
+
+    def test_old_character_caps_are_removed(self):
+        sources = {kind: file(kind+'.txt', 'Readable source text. '*900) for kind in ['syllabus', 'reading']}
+        self.assertEqual(len(server.prepare(sources)['sources']), 2)
 
     def test_empty_and_unsupported(self):
         for item in [file('empty.txt',''),file('image.png','x'*100),file('short.txt','short'),file('fake.pdf','not a pdf'*20)]:
-            with self.assertRaises(ValueError): server.extract_file(item,'S',6000)
+            with self.assertRaises(ValueError): server.extract_file(item,'S')
 
     def test_invalid_range(self):
         item=file('source.pdf','%PDF-'+'x'*100);item.update(start=5,end=2)
-        with self.assertRaisesRegex(ValueError,'page range'):server.extract_file(item,'R',16000)
+        with self.assertRaisesRegex(ValueError,'page range'):server.extract_file(item,'R')
 
     def test_pdf_page_numbering_and_scans(self):
         item=file('source.pdf','%PDF-'+'x'*100);item.update(start=4,end=5)
         output=('First selected page has enough sample words to exceed the minimum text threshold.\fSecond selected page has text.\f').encode()
         with patch('server.subprocess.run') as run:
             run.return_value.returncode=0;run.return_value.stdout=output
-            doc=server.extract_file(item,'R',16000)
+            doc=server.extract_file(item,'R')
             self.assertEqual([4,5],[c['page'] for c in doc['chunks']])
             run.return_value.stdout=b'\f'
-            with self.assertRaisesRegex(ValueError,'OCR'):server.extract_file(item,'R',16000)
+            with self.assertRaisesRegex(ValueError,'OCR'):server.extract_file(item,'R')
 
 class ValidationTests(unittest.TestCase):
     def setUp(self): self.sources=server.prepare(fixture_files())['sources']
@@ -73,7 +77,7 @@ class ValidationTests(unittest.TestCase):
         p=valid_plan();del p['review']
         with self.assertRaises(ValueError):server.validate_plan(p,self.sources)
     def test_generation_only_constrains_reference_fields(self):
-        with patch('server.ollama',return_value={'response':json.dumps(valid_plan())}) as request:
+        with patch('server.ollama',side_effect=[{'model_info':{'general.architecture':'qwen2','qwen2.context_length':32768}}, {'response':json.dumps(valid_plan())}]) as request:
             server.generate(self.sources)
             schema=request.call_args.args[1]['format']['properties']
             self.assertEqual(schema['syllabus_id']['enum'],['S1'])
