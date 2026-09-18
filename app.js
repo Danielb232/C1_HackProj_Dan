@@ -8,7 +8,27 @@ try {
 } catch { /* A damaged save must not prevent uploading new sources. */ }
 let course = library.courses[library.active] || null;
 let currentMode = 'focus', focusStep = 0, queue = [], questionIndex = 0, chosen = null, answered = false;
-let pendingFiles = null, pendingBudget = null, busy = false;
+let pendingFiles = null, pendingBudget = null, busy = false, mapSelected = null;
+
+// Leitner progression measured in quiz sessions, not calendar days, so a demo can show
+// recovery without waiting. Box 2 counts as mastered: miss it, then get it right next
+// session, and the map node goes from red to green.
+const MASTERY_BOX = 2, MAX_BOX = 5;
+const STATUS_LABEL = {unseen:'Not attempted', missed:'Missed', relearning:'Relearning', learning:'Learning', mastered:'Mastered'};
+function advance(previous, correct, confidence, session) {
+  const box = previous?.box || 1, timesMissed = previous?.timesMissed || 0, timesCorrect = previous?.timesCorrect || 0;
+  if (!correct) return {box:1, status:timesMissed ? 'relearning' : 'missed', timesMissed:timesMissed+1, timesCorrect, lastSeenSession:session, nextDueSession:session+1};
+  // A correct guess is not evidence of mastery: uncertain answers hold their box.
+  const next = confidence === 'confident' ? Math.min(box+1, MAX_BOX) : box;
+  return {box:next, status:next >= MASTERY_BOX ? 'mastered' : timesMissed ? 'relearning' : 'learning', timesMissed, timesCorrect:timesCorrect+1, lastSeenSession:session, nextDueSession:session+next};
+}
+function progressFor(index) {
+  const m = course?.memory[index];
+  if (!m) return {status:'unseen', box:1};
+  if (m.status) return m;
+  // Attempts saved before progression existed: derive a status from the last answer.
+  return {...m, status:!m.correct ? 'missed' : m.confidence === 'confident' ? 'mastered' : 'learning', box:m.correct && m.confidence === 'confident' ? MASTERY_BOX : 1};
+}
 
 function persist() {
   try { localStorage.setItem(STORAGE, JSON.stringify(library)); $('storage-warning').classList.add('hidden'); return true; }
@@ -140,9 +160,68 @@ function renderSources() {
   const s = course.sources.syllabus.chunks.find(c=>c.id===course.plan.syllabus_id);
   $('fact-ledger').insertAdjacentHTML('beforeend', `<li><strong>Syllabus connection</strong><details><summary>${safe(course.plan.syllabus_id)} · Syllabus · ${safe(course.sources.syllabus.kind)} ${s?.page}</summary><p class="source-document">${safe(course.sources.syllabus.name)}</p><p>${safe(s?.text)}</p></details></li>`);
 }
+// --- concept map: dependency-free inline SVG, radial layout around the reading ---
+const MAP_W = 640, MAP_H = 330, MAP_CENTER = [320, 190], MAP_RING = 130, MAP_RADIUS = 20;
+const pt = p => p.map(v => Math.round(v*10)/10).join(',');
+function mapPoint(i, n) {
+  const angle = -Math.PI/2 + i*2*Math.PI/n;
+  return [MAP_CENTER[0] + MAP_RING*Math.cos(angle), MAP_CENTER[1] + MAP_RING*Math.sin(angle)];
+}
+function wrapLabel(text, width, max) {
+  const out = []; let line = '';
+  for (const word of String(text ?? '').trim().split(/\s+/)) {
+    if (line && `${line} ${word}`.length > width) { out.push(line); line = word; } else line = line ? `${line} ${word}` : word;
+  }
+  if (line) out.push(line);
+  if (out.length > max) { out.length = max; out[max-1] += '…'; }
+  return out.map(l => l.length > width ? `${l.slice(0, width-1)}…` : l);
+}
+function renderMap() {
+  const p = course.plan, n = p.concepts.length, points = p.concepts.map((_, i) => mapPoint(i, n));
+  const spokes = points.map(([x, y]) => `<line class="map-spoke" x1="${MAP_CENTER[0]}" y1="${MAP_CENTER[1]}" x2="${pt([x])}" y2="${pt([y])}"/>`).join('');
+  const hubLines = wrapLabel(p.title, 28, 2);
+  const hub = `<g class="map-hub" aria-hidden="true"><rect x="${MAP_CENTER[0]-95}" y="${MAP_CENTER[1]-22}" width="190" height="44" rx="4"/><text x="${MAP_CENTER[0]}" y="${MAP_CENTER[1] + (hubLines.length > 1 ? -3 : 4)}">${hubLines.map((l, k) => `<tspan x="${MAP_CENTER[0]}" dy="${k ? 15 : 0}">${safe(l)}</tspan>`).join('')}</text></g>`;
+  const seen = {};
+  const edges = p.relationships.map((r, i) => {
+    const a = points[r.from], b = points[r.to];
+    if (!a || !b || r.from === r.to) return '';
+    const key = [r.from, r.to].sort().join('-'), bow = (seen[key] = (seen[key] || 0) + 1) > 1 ? 40 : 0;
+    const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.hypot(dx, dy), ux = dx/len, uy = dy/len;
+    const mid = [(a[0]+b[0])/2, (a[1]+b[1])/2];
+    let nx = -uy, ny = ux;  // normal pointing away from the hub, so labels sit outside
+    if (nx*(mid[0]-MAP_CENTER[0]) + ny*(mid[1]-MAP_CENTER[1]) < 0) { nx = -nx; ny = -ny; }
+    const start = [a[0]+ux*(MAP_RADIUS+4), a[1]+uy*(MAP_RADIUS+4)], end = [b[0]-ux*(MAP_RADIUS+9), b[1]-uy*(MAP_RADIUS+9)];
+    const ctrl = [mid[0]+nx*bow, mid[1]+ny*bow], lift = 22 + bow/2;
+    const lx = mid[0]+nx*lift, ly = mid[1]+ny*lift;
+    const flagged = !!course.mapFlags?.[i], label = flagged ? `Connection ${i+1} flagged` : wrapLabel(r.label, 28, 1)[0] || `Connection ${i+1}`;
+    const w = label.length*6.6 + 14;
+    return `<g class="map-edge${flagged ? ' flagged' : ''}"><path d="M${pt(start)} Q${pt(ctrl)} ${pt(end)}"/><rect x="${pt([lx-w/2])}" y="${pt([ly-10])}" width="${pt([w])}" height="20" rx="3"/><text x="${pt([lx])}" y="${pt([ly+4])}">${safe(label)}</text></g>`;
+  }).join('');
+  const nodes = p.concepts.map((c, i) => {
+    const [x, y] = points[i], prog = progressFor(i), lines = wrapLabel(c.title, 20, 2);
+    const above = y < MAP_CENTER[1], baseline = above ? y - MAP_RADIUS - 12 - (lines.length-1)*16 : y + MAP_RADIUS + 22;
+    const current = currentMode === 'focus' && focusStep === i, flagged = course.checks[i]?.state === 'flagged';
+    return `<g class="map-node ${prog.status}${current ? ' current' : ''}${mapSelected === i ? ' selected' : ''}" role="button" tabindex="0" data-map-node="${i}" aria-pressed="${mapSelected === i}" aria-label="Concept ${i+1}: ${safe(c.title)}. ${STATUS_LABEL[prog.status]}${flagged ? '. Question flagged by a teammate' : ''}. Show summary and source."><circle cx="${pt([x])}" cy="${pt([y])}" r="${MAP_RADIUS}"/><text class="map-number" x="${pt([x])}" y="${pt([y+5])}">${i+1}</text><text class="map-label" x="${pt([x])}" y="${pt([baseline])}">${lines.map((l, k) => `<tspan x="${pt([x])}" dy="${k ? 16 : 0}">${safe(l)}</tspan>`).join('')}</text></g>`;
+  }).join('');
+  return `<figure class="map-figure"><svg class="map-svg" viewBox="0 0 ${MAP_W} ${MAP_H}" role="group" aria-labelledby="map-title"><title id="map-title">Concept map: ${n} concepts around the reading, ${p.relationships.length} proposed connections. Node color shows quiz progress.</title><defs><marker id="map-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path class="map-arrowhead" d="M0,0 L8,4 L0,8 z"/></marker></defs>${spokes}${hub}${edges}${nodes}</svg></figure>`;
+}
+function mapDetail(i) {
+  const c = course.plan.concepts[i], prog = progressFor(i), m = course.memory[i];
+  const progress = m ? ` · box ${prog.box} of ${MAX_BOX} · ${m.attempts} attempt${m.attempts === 1 ? '' : 's'}` : ' · take the quiz to start tracking';
+  return `<p><strong>${i+1}. ${safe(c.title)}</strong> · <span class="status-dot ${prog.status}"></span>${STATUS_LABEL[prog.status]}${progress}</p><p>${safe(c.summary)}</p>${sourceDetails(c)}`;
+}
+function selectMapNode(i) {
+  mapSelected = i;
+  $('map-detail').innerHTML = mapDetail(i);
+  document.querySelectorAll('[data-map-node]').forEach(node => {
+    const on = Number(node.dataset.mapNode) === i;
+    node.classList.toggle('selected', on); node.setAttribute('aria-pressed', String(on));
+  });
+}
 function renderStudy() {
   if (!course) return;
   const p = course.plan;
+  if (mapSelected !== null && !p.concepts[mapSelected]) mapSelected = null;
   const concept = (c,i) => `<h2>${i+1}. ${safe(c.title)}</h2><p>${safe(c.summary)}</p><p class="source-ref">Source ${safe(c.source_id)}</p>`;
   let material;
   if (currentMode === 'focus') material = `<div class="focus-step">${concept(p.concepts[focusStep],focusStep)}<p><strong>Small next action:</strong> Explain this idea in one sentence before moving on.</p></div><div class="focus-controls"><button class="quiet-button" id="focus-prev" ${focusStep===0?'disabled':''}>← Previous</button><span>Idea ${focusStep+1} of 3</span><button class="quiet-button" id="focus-next" ${focusStep===2?'disabled':''}>Next →</button></div>`;
@@ -157,8 +236,9 @@ function renderStudy() {
     return course.mapFlags?.[i] ? `<details class="map-link"><summary>Connection ${i+1} flagged — excluded from the map</summary><p>${content}</p><p>Needs source review; not approved learning material.</p></details>` : `<div class="map-link">${content}<br><button class="quiet-button" data-flag-link="${i}">Flag connection ${i+1} for review</button></div>`;
   }).join('');
   const alignment = p.alignment.trim() === p.syllabus_id ? 'Compare these concepts with the cited syllabus objective; the model did not explain its alignment.' : p.alignment;
+  const legend = ['unseen', 'missed', 'learning', 'mastered'].map(s => `<li><span class="status-dot ${s}"></span>${s === 'learning' ? 'Learning / relearning' : STATUS_LABEL[s]}</li>`).join('');
   $('study-card').innerHTML = `<p class="study-alignment">${safe(alignment)} <span class="source-ref">Syllabus reference: ${safe(p.syllabus_id)}</span></p>${material}
-    <section><h2>Concept map · draft</h2><p>Check these proposed connections against the source references.</p><div aria-label="Concept relationships">${links}</div></section>
+    <section class="map-section"><h2>Concept map · draft</h2><p>Node colors follow your quiz progress. Select a node for its summary and source, then check the proposed connections against the source references.</p>${renderMap()}<ul class="map-legend" aria-label="Map colors">${legend}</ul><div id="map-detail" class="map-detail" aria-live="polite">${mapSelected === null ? '' : mapDetail(mapSelected)}</div><div aria-label="Concept relationships">${links}</div></section>
     <section class="review-sheet"><h2>Critical-review sheet · draft</h2><p><strong>Big picture.</strong> ${safe(p.review.big_picture)}</p><p><strong>Challenge the idea.</strong> ${safe(p.review.critical_question)}</p><p><strong>Limits / open questions.</strong> ${safe(p.review.limitation)}</p></section>
     <section><h2>Check the answer key</h2><p>Ask a teammate to compare each answer with the source. Flagged questions are excluded from the quiz.</p>${reviews}<button class="primary-button" id="start-all">Start quiz</button></section>`;
   $('audit-banner').textContent = 'Source IDs and quoted excerpts matched the uploaded text. Summaries, connections, and quiz answers remain model-generated and need human review.';
@@ -183,6 +263,8 @@ function indices(kind) {
 }
 function startQuiz(kind='all', navigate=true) {
   queue = indices(kind); questionIndex = 0;
+  // Each quiz run is one session: the unit spaced repetition counts in.
+  if (queue.length) { course.sessions = (course.sessions || 0) + 1; persist(); }
   renderQuestion(); if (navigate) setView('quiz');
 }
 function renderQuestion() {
@@ -210,11 +292,13 @@ function recordConfidence(value) {
   if (answered || chosen === null) return;
   answered = true;
   const index = queue[questionIndex], q = course.plan.concepts[index], correct = chosen===q.correct;
-  course.memory[index] = {correct, confidence:value, attemptedAt:new Date().toISOString(), attempts:(course.memory[index]?.attempts||0)+1};
+  const progress = advance(course.memory[index], correct, value, course.sessions || 1);
+  course.memory[index] = {correct, confidence:value, attemptedAt:new Date().toISOString(), attempts:(course.memory[index]?.attempts||0)+1, ...progress};
   const saved = persist();
   document.querySelectorAll('.answer').forEach((b,i)=>{b.disabled=true;b.classList.toggle('correct',i===q.correct);b.classList.toggle('wrong',i===chosen&&!correct);});
   document.querySelectorAll('[data-confidence]').forEach(b=>b.disabled=true);
-  $('feedback').innerHTML = `<strong>${correct?'Correct against this answer key.':'Let’s revisit this idea.'}</strong> ${safe(q.explanation)} ${sourceDetails(q)}${saved?'':'<p>Warning: this attempt could not be saved to browser storage.</p>'}`;
+  const due = progress.nextDueSession - (course.sessions || 1);
+  $('feedback').innerHTML = `<strong>${correct?'Correct against this answer key.':'Let’s revisit this idea.'}</strong> ${safe(q.explanation)} <p class="progress-note"><span class="status-dot ${progress.status}"></span>${STATUS_LABEL[progress.status]} · box ${progress.box} of ${MAX_BOX} · due again ${due === 1 ? 'next session' : `in ${due} sessions`}.</p>${sourceDetails(q)}${saved?'':'<p>Warning: this attempt could not be saved to browser storage.</p>'}`;
   $('feedback').classList.remove('hidden');
   $('next-question').textContent = questionIndex===queue.length-1 ? 'See my next-session plan' : 'Continue';
   $('next-question').classList.remove('hidden'); updateFocus();
@@ -222,7 +306,7 @@ function recordConfidence(value) {
 function renderMemory() {
   if (!course) return;
   const entries = Object.entries(course.memory), missed = indices('missed'), uncertain = indices('uncertain');
-  $('memory-count').textContent = `${entries.length} concepts tracked in this source set`;
+  $('memory-count').textContent = `${entries.length} concepts tracked in this source set · ${course.sessions || 0} quiz session${course.sessions === 1 ? '' : 's'}`;
   $('plan-title').textContent = !entries.length ? 'Take a quiz to build your review plan' : missed.length ? `${missed.length} missed concept${missed.length===1?'':'s'} to revisit` : 'No missed concepts in the review queue';
   $('plan-copy').textContent = 'Missed-only review repeats the saved questions for concepts you answered incorrectly. Correct but uncertain answers have a separate practice queue. Flagged questions are excluded.';
   $('plan-tag').textContent = entries.length ? 'SAVED SIGNALS' : 'NOT ATTEMPTED';
@@ -230,13 +314,21 @@ function renderMemory() {
   $('start-targeted').disabled = !missed.length;
   $('start-uncertain').disabled = !uncertain.length;
   $('start-uncertain').textContent = `Practice uncertain answers (${uncertain.length})`;
-  $('memory-table').innerHTML = entries.length ? entries.map(([i,v])=>`<tr><td><strong>${safe(course.plan.concepts[i].title)}</strong></td><td>${v.correct?'Correct':'Incorrect'} · ${safe(v.confidence)}</td><td>${course.checks[i]?.state==='flagged'?'Excluded: human flagged':!v.correct?'Missed-only queue':v.confidence!=='confident'?'Optional confidence practice':'No immediate retry'}</td><td>${v.attempts} attempt${v.attempts===1?'':'s'}</td></tr>`).join('') : '<tr><td colspan="4">No attempts for these sources yet.</td></tr>';
+  const nextStep = (i, v) => {
+    if (course.checks[i]?.state === 'flagged') return 'Excluded: human flagged';
+    const prog = progressFor(i), due = prog.nextDueSession ? ` · due in session ${prog.nextDueSession}` : '';
+    if (!v.correct) return `Missed-only queue${due}`;
+    if (v.confidence !== 'confident') return `Optional confidence practice${due}`;
+    return `No immediate retry${due}`;
+  };
+  $('memory-table').innerHTML = entries.length ? entries.map(([i,v])=>{const prog = progressFor(i); return `<tr><td><strong>${safe(course.plan.concepts[i].title)}</strong></td><td><span class="status-dot ${prog.status}"></span>${STATUS_LABEL[prog.status]} · box ${prog.box}</td><td>${v.correct?'Correct':'Incorrect'} · ${safe(v.confidence)}</td><td>${nextStep(i, v)}</td><td>${v.attempts} attempt${v.attempts===1?'':'s'}</td></tr>`;}).join('') : '<tr><td colspan="5">No attempts for these sources yet.</td></tr>';
 }
 function updateFocus() {
   $('course-name').textContent = course?.plan.title || 'Study workspace';
   const missed = indices('missed');
   $('focus-title').textContent = course ? (missed.length ? course.plan.concepts[missed[0]].title : course.plan.title) : 'Start with your material';
-  $('signal-value').textContent = !course || !Object.keys(course.memory).length ? 'No attempts yet' : `${missed.length} missed · ${indices('uncertain').length} uncertain`;
+  const mastered = course ? course.plan.concepts.filter((_, i) => progressFor(i).status === 'mastered').length : 0;
+  $('signal-value').textContent = !course || !Object.keys(course.memory).length ? 'No attempts yet' : `${missed.length} missed · ${indices('uncertain').length} uncertain · ${mastered} mastered · session ${course.sessions || 0}`;
 }
 async function checkModel() {
   try {
@@ -254,7 +346,13 @@ document.querySelectorAll('.mode-card').forEach((b,i,buttons)=>{
   b.addEventListener('click',()=>setMode(b.dataset.mode));
   b.addEventListener('keydown',event=>{if(['ArrowRight','ArrowDown','ArrowLeft','ArrowUp'].includes(event.key)){event.preventDefault();const target=buttons[(i+(['ArrowRight','ArrowDown'].includes(event.key)?1:2))%3];setMode(target.dataset.mode);target.focus();}});
 });
+$('study-card').addEventListener('keydown',event=>{
+  const node = event.target.closest?.('[data-map-node]');
+  if (node && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); selectMapNode(Number(node.dataset.mapNode)); }
+});
 $('study-card').addEventListener('click',event=>{
+  const node = event.target.closest('[data-map-node]');
+  if (node) { selectMapNode(Number(node.dataset.mapNode)); return; }
   const button = event.target.closest('button'); if (!button) return;
   if (button.id==='focus-next'||button.id==='focus-prev') {focusStep+=button.id==='focus-next'?1:-1;renderStudy();$('study-card').querySelector('.focus-step h2').setAttribute('tabindex','-1');$('study-card').querySelector('.focus-step h2').focus();}
   if (button.id==='start-all') startQuiz();

@@ -17,6 +17,11 @@
   --warning-text: #705014;
   --warning-border: #a57a24;
   --warning-soft: #fff8e8;
+  /* Progression colors: white node numbers sit on these, so each keeps 4.5:1 with --on-accent. */
+  --status-unseen: #5f6d80;
+  --status-missed: #b42338;
+  --status-learning: #8a6318;
+  --status-mastered: #28724f;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.65 system-ui, -apple-system, sans-serif; }
@@ -133,6 +138,34 @@ blockquote { border-left: 2px solid var(--line); margin: 12px 0; padding-left: 1
 .listen-list li { padding: 18px 0; }
 .listen-list p { margin-top: 10px; max-width: 65ch; }
 .concept-node { display: inline-block; margin: 4px 8px 4px 0; padding: 3px 0; font-size: 14px; font-weight: 600; }
+.map-figure { margin: 16px 0 6px; }
+.map-svg { display: block; width: 100%; max-width: 640px; height: auto; font-family: inherit; }
+.map-spoke { stroke: var(--line); stroke-width: 1.5; }
+.map-hub rect { fill: var(--white); stroke: var(--line); }
+.map-hub text { fill: var(--muted); font-size: 12px; text-anchor: middle; }
+.map-node { cursor: pointer; outline: none; }
+.map-node circle { fill: var(--status-unseen); stroke: var(--white); stroke-width: 2; transition: fill .4s, stroke .2s; }
+.map-node.missed circle { fill: var(--status-missed); }
+.map-node.learning circle, .map-node.relearning circle { fill: var(--status-learning); }
+.map-node.mastered circle { fill: var(--status-mastered); }
+.map-node.current circle, .map-node.selected circle, .map-node:hover circle { stroke: var(--accent); stroke-width: 3; }
+.map-node:focus-visible circle { stroke: var(--accent); stroke-width: 4; }
+.map-number { fill: var(--on-accent); font-size: 13px; font-weight: 700; text-anchor: middle; pointer-events: none; }
+.map-label { fill: var(--ink); font-size: 13px; font-weight: 600; text-anchor: middle; }
+.map-edge path { fill: none; stroke: var(--muted); stroke-width: 1.5; marker-end: url(#map-arrow); }
+.map-arrowhead { fill: var(--muted); }
+.map-edge rect { fill: var(--white); stroke: var(--line); }
+.map-edge text { fill: var(--muted); font-size: 12px; text-anchor: middle; }
+.map-edge.flagged path { stroke: var(--line); stroke-dasharray: 5 4; marker-end: none; }
+.map-edge.flagged text { fill: var(--warning-text); }
+.map-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 0; margin: 0 0 12px; font-size: 13px; color: var(--muted); }
+.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; background: var(--status-unseen); vertical-align: -1px; }
+.status-dot.missed { background: var(--status-missed); }
+.status-dot.learning, .status-dot.relearning { background: var(--status-learning); }
+.status-dot.mastered { background: var(--status-mastered); }
+.map-detail { margin-bottom: 14px; padding: 12px 14px; background: var(--soft); border-left: 2px solid var(--accent); font-size: 15px; }
+.map-detail:empty { display: none; }
+.progress-note { margin-top: 8px; font-size: 14px; color: var(--muted); }
 .map-link { font-size: 15px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .map-link .quiet-button { padding: 3px 0; border: none; background: none; color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
 .review-sheet p { margin-top: 18px; max-width: 65ch; color: var(--ink); font-size: 16px; }
@@ -220,4 +253,4 @@ footer { display: flex; justify-content: space-between; align-items: center; gap
   .saved-row { flex-wrap: wrap; }
   .saved-row span { flex-basis: 100%; }
 }
-@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } .map-node circle { transition: none; } }

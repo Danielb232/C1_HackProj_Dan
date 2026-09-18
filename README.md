@@ -35,7 +35,11 @@ For a quick test, upload `tests/fixtures/syllabus.txt` as the syllabus and `test
 3. Generate locally: syllabus alignment, three concepts, two map relationships, a critical-review sheet, and three multiple-choice questions. Typically 1–3 minutes; slower hardware may time out. Malformed output or mismatched quotes fails visibly, with no canned fallback.
 4. A human teammate checks answers and source passages in Learn. Approval/flags and notes persist. Flagged questions are excluded from quizzes; proposed concept-map connections can also be flagged and excluded. Draft questions remain available but visibly marked as not checked. Quotes matching source text does not establish answer correctness, complete coverage, or sound reasoning. In testing, the small model produced both an unsupported connection and semantically overlapping answer options: review is essential, not ceremonial.
 5. Choose an answer, report confidence, then see feedback. Missed and correct-but-uncertain answers have separate queues.
-6. Reload or close and reopen using the same browser/origin. Memory → Re-quiz only missed concepts. This repeats saved questions; it does not generate fresh variants or implement a calendar-based spaced-repetition schedule.
+6. Reload or close and reopen using the same browser/origin. Memory → Re-quiz only missed concepts. This repeats saved questions; it does not generate fresh variants.
+
+### Concept map and progression
+
+The Study view draws the concept map as inline SVG (no library, no network): the reading in the center, each concept around it, and the model's proposed connections as labeled arrows. Flagged connections are drawn dashed. Nodes are keyboard-focusable; selecting one shows its summary and source passage. Node color shows progress from a Leitner ladder counted in quiz sessions, not calendar days: grey not attempted, red missed, amber learning or relearning, green mastered. A wrong answer drops a concept to box 1 and makes it due next session; a confident correct answer moves it up one box (box 2 counts as mastered) and it is due again after that many sessions; a correct but unsure answer holds its box. The Review table shows the same box and due session. The ladder is stored with the pack in this browser and never leaves it.
 
 ## Inclusion and judge pitch
 
@@ -52,7 +56,7 @@ The integration teammate can wire up `#canvas-connect`, `#canvas-course`, and `#
 - Listen: semantic, linear screen-reader output and keyboard controls; no speech synthesis is implied.
 - Local small language model: source-derived generation without cloud token charges. Processing still uses local compute and a bounded context window.
 - Upload → inspect → generate → human check → quiz/confidence → saved memory → missed-only review.
-- The required concept map, review sheet, quiz, persistent memory, and human answer-check flow are present. For the live demo, ask a real teammate to verify answers; software tests are not that human check.
+- The required concept map (with progress-colored nodes), review sheet, quiz, persistent session-based spaced repetition, and human answer-check flow are present. For the live demo, ask a real teammate to verify answers; software tests are not that human check.
 
 ## Data and limitations
 
