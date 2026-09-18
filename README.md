@@ -1,5 +1,7 @@
 # Echo
 
+<img src="assets/echo-logo.png" alt="Echo logo" width="180" height="180" />
+
 Local-first course study companion for TAPIA challenge #8. No built-in biology material or cloud API keys.
 
 ## Get the code

@@ -17,6 +17,14 @@ MODEL = 'qwen2.5:3b'
 MAX_FILE = 10 * 1024 * 1024
 MAX_EXTRACTED = 500_000  # Reader/preview resource guard, not a model context limit.
 LOCK = threading.Lock()
+PUBLIC_ASSETS = {
+    '/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js', '/styles.css': 'styles.css',
+    '/assets/echo-logo.png': 'assets/echo-logo.png',
+    '/assets/echo-wordmark.png': 'assets/echo-wordmark.png',
+    '/assets/echo-icon.png': 'assets/echo-icon.png',
+    '/assets/favicon.png': 'assets/favicon.png',
+    '/favicon.ico': 'assets/favicon.png',
+}
 
 
 def extract_file(item, prefix):
@@ -207,7 +215,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, {'ready': ready, 'model': MODEL})
             except Exception:
                 return self.send(200, {'ready': False, 'model': MODEL})
-        name = {'/': 'index.html', '/index.html': 'index.html', '/app.js': 'app.js', '/styles.css': 'styles.css'}.get(self.path.split('?')[0])
+        name = PUBLIC_ASSETS.get(self.path.split('?')[0])
         if not name:
             return self.send(404, {'error': 'Not found'})
         self.send(200, (ROOT / name).read_bytes(), mimetypes.guess_type(name)[0] or 'text/plain')

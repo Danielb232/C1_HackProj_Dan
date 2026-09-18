@@ -36,8 +36,9 @@ button { touch-action: manipulation; }
 .hidden { display: none !important; }
 .sr-only, .skip-link { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .skip-link:focus { width: auto; height: auto; clip-path: none; left: 12px; top: 12px; padding: 10px; background: white; z-index: 5; }
-.topbar { min-height: 68px; display: flex; align-items: center; gap: 20px; }
-.brand { color: var(--accent); text-decoration: none; font: 650 28px/1 Georgia, serif; letter-spacing: -1.5px; }
+.topbar { min-height: 80px; display: flex; align-items: center; gap: 20px; }
+.brand { display: inline-flex; flex-shrink: 0; text-decoration: none; border-radius: 3px; }
+.brand img { display: block; width: 96px; height: 60px; border-radius: 3px; }
 .course-label { font-size: 14px; color: var(--muted); max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .model-status { margin-left: auto; font: 13px/1.5 ui-monospace, monospace; color: var(--muted); text-align: right; }
 .stepper { display: flex; gap: 25px; border-bottom: 1px solid var(--line); }
@@ -190,7 +191,7 @@ footer { display: flex; justify-content: space-between; align-items: center; gap
 .footer-link.active { color: var(--accent-text); }
 @media (max-width: 760px) {
   .shell { padding: 0 20px; }
-  .topbar { min-height: 60px; gap: 12px; }
+  .topbar { min-height: 76px; gap: 12px; }
   .course-label { display: none; }
   .model-status { font-size: 12px; }
   main { padding-top: 24px; }
