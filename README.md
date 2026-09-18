@@ -56,6 +56,7 @@ Ollama receives the selected source text, not learner history. Uploaded instruct
 python3 -m unittest discover -s tests -v
 node --check app.js
 node tests/frontend.test.cjs
+node tests/theme.test.cjs
 ```
 
 Ollama structured-output reference: https://docs.ollama.com/capabilities/structured-outputs
